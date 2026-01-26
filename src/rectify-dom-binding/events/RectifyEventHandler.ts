@@ -1,3 +1,5 @@
+import { isFunction } from "@rectify/shared/utilities";
+
 const EVENT_HANDLERS_KEY = "__rectifyEventHandlers__";
 
 const RectifyEventSupported = [
@@ -39,7 +41,7 @@ const dispatchEvent = (event: Event, domElement: Element) => {
 
   const handler = handlers[handlerName];
 
-  if (handler && typeof handler === "function") {
+  if (handler && isFunction(handler)) {
     handler(event);
   }
 };
@@ -53,7 +55,7 @@ export const setEventHandlers = (domElement: Element, props: any): void => {
     }
 
     // Check if it's an event handler (starts with 'on')
-    if (propKey.startsWith("on") && typeof props[propKey] === "function") {
+    if (propKey.startsWith("on") && isFunction(props[propKey])) {
       const eventType = propKey.toLowerCase(); // 'onclick', 'oninput'
       handlers[eventType] = props[propKey];
     }

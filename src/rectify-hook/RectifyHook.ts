@@ -2,6 +2,7 @@ import { Fiber } from "@rectify/rectify-fiber/RectifyFiberTypes";
 import { createRectifyHookBuilder } from "./RectifyHookBuilder";
 import { Dispatcher, RectifyHook, Update } from "./RectifyHookTypes";
 import { isFunction } from "@rectify/shared/utilities";
+import { RectifyNode } from "@rectify/core";
 
 const {
   setCurrentlyRenderingFiber,
@@ -27,7 +28,7 @@ export class RectifyHookRenderer {
     const children = this.Component(this.props);
     setCurrentlyRenderingFiber(null);
     setFiberHookIndex(0);
-    return children;
+    return children as RectifyNode;
   }
 }
 
@@ -58,7 +59,7 @@ export const useState = <T>(
       do {
         const action = update.action;
         newState = isFunction(action) ? action(newState) : action;
-        update = update?.next!
+        update = update?.next!;
       } while (update !== first);
 
       hook.memoizedState = newState;

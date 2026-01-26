@@ -20,6 +20,7 @@ export const createRectifyFiber = (
 ): Fiber => {
   const fiber: Fiber = {
     root: null,
+    isAlternate: false,
     tag,
     props,
     key: isPlainObject(props) ? (props.key ?? null) : null,
@@ -65,6 +66,7 @@ export const createRectifyFiberBuilder = (
   fiberBuilding.sibling = current.sibling;
   fiberBuilding.index = current.index;
   fiberBuilding.ref = current.ref;
+  fiberBuilding.isAlternate = true;
 
   return fiberBuilding;
 };

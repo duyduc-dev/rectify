@@ -15,6 +15,7 @@ export type Fiber = {
   flags: RectifyFiberFlags;
   stateNode: Element | Text | null;
   alternate: Fiber | null;
+  isAlternate: boolean;
   ref: RectifyElementRefObject | null;
   key: RectifyElementKey;
   props: RectifyElementProps;

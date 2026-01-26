@@ -9,10 +9,10 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   bundle: true,
-  splitting: false,
+  splitting: true,
 
   treeshake: true,
-  minify: false,
+  minify: true,
   keepNames: true,
   clean: true,
 });

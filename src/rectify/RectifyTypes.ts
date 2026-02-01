@@ -1,19 +1,20 @@
-type RectifyText = string | number;
+export type RectifyText = string | number;
 
-type JSXElementFunctional<P> = (props: P) => RectifyNode;
+export type JSXElementFunctional<P> = (props: P) => RectifyNode;
 
-type RectifyElement<
+export type RectifyElement<
   P = any,
   T extends string | JSXElementFunctional<any> =
     | string
     | JSXElementFunctional<any>,
 > = {
+  $$typeof: symbol;
   type: T;
   props: P;
   key: Key | null;
 };
 
-type RectifyNode =
+export type RectifyNode =
   | RectifyElement
   | RectifyText
   | boolean
@@ -21,8 +22,8 @@ type RectifyNode =
   | null
   | undefined;
 
-type RectifyFragment = Iterable<RectifyNode>;
+export type RectifyFragment = Iterable<RectifyNode>;
 
-type RectifyElementType = string | JSXElementFunctional<any>;
+export type RectifyElementType = string | JSXElementFunctional<any>;
 
-type Key = string | number | bigint;
+export type Key = string | number | bigint;

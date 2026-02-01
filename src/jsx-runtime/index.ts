@@ -1,11 +1,14 @@
+import { RectifyJSXElement } from "@rectify/rectify/RectifyJSX";
+import {
+  RectifyElementType,
+  Key,
+  RectifyElement,
+} from "@rectify/rectify/RectifyTypes";
+
 export function jsx(
   type: RectifyElementType,
-  props: unknown,
+  props?: unknown,
   key?: Key,
 ): RectifyElement {
-  return {
-    type,
-    props,
-    key: key ?? null,
-  };
+  return RectifyJSXElement(type, props, key ?? null);
 }

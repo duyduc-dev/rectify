@@ -1,10 +1,8 @@
-export { jsx } from "./jsx-runtime";
-export { render } from "./rectify-dom";
 export {
+  jsx,
+  createElement,
   RectifyElement,
-  RectifyElementType,
-  RectifyFragment,
+  RectifyKey,
   RectifyNode,
   RectifyText,
-} from "./rectify";
-export { useState } from "./rectify-hook";
+} from "./core";

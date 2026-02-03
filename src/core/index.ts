@@ -1,7 +1,7 @@
+export { jsx, createElement } from "./RectifyElement";
 export {
   RectifyElement,
-  RectifyElementType,
-  RectifyFragment,
+  RectifyKey,
   RectifyNode,
   RectifyText,
 } from "./RectifyTypes";

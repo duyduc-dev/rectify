@@ -1,26 +1,42 @@
-import { Key, RectifyElementType } from "@rectify/rectify/RectifyTypes";
+import { RectifyKey } from "@rectify/core";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
-import { RectifyFiberFlags } from "./RectifyFiberFlags";
-import { HookState } from "@rectify/rectify-hook/RectifyHookTypes";
 
-export type Fiber = {
-  tag: RectifyFiberWorkTag;
-  type: RectifyElementType | null;
-  flags: RectifyFiberFlags;
+/**
+ * RectifyFiber to control dom
+ */
+export type RectifyFiber = {
+  /**
+   * To determine this fiber is host root, host component, ..etc.
+   */
+  workTag: RectifyFiberWorkTag;
 
-  child: Fiber | null;
-  sibling: Fiber | null;
-  return: Fiber | null;
+  /**
+   * Post to first child
+   */
+  child: RectifyFiber | null;
+
+  /**
+   * Point to next fiber in the same level
+   */
+  sibling: RectifyFiber | null;
+
+  /**
+   * Point to parent of current fiber
+   */
+  return: RectifyFiber | null;
+
+  /**
+   * Position in current level
+   */
   index: number;
 
-  key: Key | null;
+  /**
+   * Next props
+   */
+  pendingProps: unknown;
 
-  pendingProps: any;
-  memoizedProps: any;
-
-  pendingState: HookState | null;
-
-  stateNode: Element | Text | null | undefined;
-
-  alternate: Fiber | null;
+  /**
+   * Key of fiber
+   */
+  key: RectifyKey
 };

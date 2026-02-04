@@ -6,3 +6,4 @@ export {
   RectifyNode,
   RectifyText,
 } from "./core";
+export { createRoot } from "./rectify-dom";

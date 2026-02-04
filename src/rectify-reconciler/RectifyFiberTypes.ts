@@ -1,14 +1,31 @@
 import { RectifyKey } from "@rectify/core";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
+import { RectifyFiberFlags } from "./RectifyFiberFlags";
+import { RectifyElementType } from "@rectify/core/RectifyTypes";
 
 /**
  * RectifyFiber to control dom
  */
 export type RectifyFiber = {
   /**
+   * A fiber alternate with current fiber
+   */
+  alternate: RectifyFiber | null;
+
+  /**
+   * Type of the component such as h1, h2 or the function component
+   */
+  type: RectifyElementType;
+
+  /**
    * To determine this fiber is host root, host component, ..etc.
    */
   workTag: RectifyFiberWorkTag;
+
+  /**
+   * To determine behavior of current fiber
+   */
+  flags: RectifyFiberFlags;
 
   /**
    * Post to first child
@@ -31,6 +48,11 @@ export type RectifyFiber = {
   index: number;
 
   /**
+   * Fiber will be delete in DOM
+   */
+  deletions: Iterable<RectifyFiber> | null;
+
+  /**
    * Next props
    */
   pendingProps: unknown;
@@ -38,5 +60,10 @@ export type RectifyFiber = {
   /**
    * Key of fiber
    */
-  key: RectifyKey
+  key: RectifyKey;
+
+  /**
+   * Point to node in dom
+   */
+  stateNode: Element | Text | null;
 };

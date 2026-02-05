@@ -58,6 +58,11 @@ export type RectifyFiber = {
   pendingProps: unknown;
 
   /**
+   * prev props
+   */
+  memoizedProps: unknown;
+
+  /**
    * Key of fiber
    */
   key: RectifyKey;

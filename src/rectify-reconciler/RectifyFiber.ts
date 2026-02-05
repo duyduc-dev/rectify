@@ -4,11 +4,11 @@ import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
 
 /**
- * Create a fiber 
- * @param workTag 
- * @param pendingProps 
- * @param key 
- * @returns 
+ * Create a fiber
+ * @param workTag
+ * @param pendingProps
+ * @param key
+ * @returns
  */
 const createFiber = (
   workTag: RectifyFiberWorkTag,
@@ -21,6 +21,7 @@ const createFiber = (
     pendingProps,
     key,
     flags: RectifyFiberFlags.NoFlags,
+    memoizedProps: null,
     stateNode: null,
     type: null,
     alternate: null,
@@ -33,9 +34,9 @@ const createFiber = (
 
 /**
  * Create a fiber can be replace be current fiber
- * @param current 
- * @param pendingProps 
- * @returns 
+ * @param current
+ * @param pendingProps
+ * @returns
  */
 const createWorkInProgress = (
   current: RectifyFiber,
@@ -63,5 +64,23 @@ const createWorkInProgress = (
 
   return wip;
 };
+
+// const createFiberFromRectifyNode = (node: RectifyFiber) => {
+//   if ((vnode as any).type === "TEXT") {
+//     const f = createFiber(FiberTag.HostText, (vnode as any).props, vnode.key);
+//     f.type = "TEXT";
+//     return f;
+//   }
+
+//   const type = (vnode as any).type;
+//   const tag =
+//     typeof type === "function"
+//       ? FiberTag.FunctionComponent
+//       : FiberTag.HostComponent;
+
+//   const f = createFiber(tag, (vnode as any).props, vnode.key);
+//   f.type = type;
+//   return f;
+// };
 
 export { createFiber, createWorkInProgress };

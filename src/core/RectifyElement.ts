@@ -1,6 +1,6 @@
-import { isTextNode } from "@rectify/shared/utilities";
 import { RECTIFY_ELEMENT_TYPE } from "./RectifyElementConstants";
 import { RectifyElement, RectifyElementType, RectifyKey } from "./RectifyTypes";
+import { withNormalizeProps } from "./RectifyInternalHOC";
 
 /**
  * Create element function to create a Rectify element
@@ -15,15 +15,12 @@ export const createElement = (
 ): RectifyElement => {
   // Determine the element key
   const elementKey = key ? key : ((props as any)?.key ?? null);
-  const children = isTextNode((props as any)?.children)
-    ? (props as any)?.children
-    : props;
 
   return {
     __type__: RECTIFY_ELEMENT_TYPE,
     key: elementKey,
     type,
-    props,
+    props: withNormalizeProps(props),
   };
 };
 

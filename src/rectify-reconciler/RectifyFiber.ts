@@ -1,7 +1,13 @@
-import { RectifyKey } from "@rectify/core";
+import { RectifyElement, RectifyKey } from "@rectify/core";
 import { RectifyFiber } from "@rectify/rectify-reconciler/RectifyFiberTypes";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
+import {
+  RECTIFY_ELEMENT_TYPE,
+  RECTIFY_TEXT_TYPE,
+} from "@rectify/core/RectifyElementConstants";
+import { isTextNode } from "@rectify/shared/utilities";
+import { isValidRectifyElement } from "@rectify/core/RectifyCoreService";
 
 /**
  * Create a fiber
@@ -16,6 +22,7 @@ const createFiber = (
   key: RectifyKey = null,
 ): RectifyFiber => {
   return {
+    __type__: RECTIFY_ELEMENT_TYPE,
     workTag,
     index: 0,
     pendingProps,
@@ -29,6 +36,7 @@ const createFiber = (
     sibling: null,
     return: null,
     deletions: null,
+    hooks: null,
   };
 };
 
@@ -65,22 +73,27 @@ const createWorkInProgress = (
   return wip;
 };
 
-// const createFiberFromRectifyNode = (node: RectifyFiber) => {
-//   if ((vnode as any).type === "TEXT") {
-//     const f = createFiber(FiberTag.HostText, (vnode as any).props, vnode.key);
-//     f.type = "TEXT";
-//     return f;
-//   }
+const createFiberFromRectifyElement = (node: RectifyElement) => {
+  if (isValidRectifyElement(node) && isTextNode(node.props)) {
+    const f = createFiber(RectifyFiberWorkTag.HostText, node.props, node.key);
+    f.__type__ = RECTIFY_TEXT_TYPE;
+    return f;
+  }
 
-//   const type = (vnode as any).type;
-//   const tag =
-//     typeof type === "function"
-//       ? FiberTag.FunctionComponent
-//       : FiberTag.HostComponent;
+  const type = node.type;
+  const tag =
+    typeof type === "function"
+      ? RectifyFiberWorkTag.FunctionComponent
+      : RectifyFiberWorkTag.HostComponent;
 
-//   const f = createFiber(tag, (vnode as any).props, vnode.key);
-//   f.type = type;
-//   return f;
-// };
+  return createFiber(tag, node.props, node.key);
+};
 
-export { createFiber, createWorkInProgress };
+export function createDomFromRectifyElement(vnode: RectifyElement): Node {
+  if (isValidRectifyElement(vnode) && isTextNode(vnode.props)) {
+    return document.createTextNode(String(vnode.props));
+  }
+  return document.createElement(vnode.type as string);
+}
+
+export { createFiber, createWorkInProgress, createFiberFromRectifyElement };

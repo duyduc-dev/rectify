@@ -2,11 +2,17 @@ import { RectifyKey } from "@rectify/core";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
 import { RectifyElementType } from "@rectify/core/RectifyTypes";
+import { Hook } from "@rectify/rectify-hook/RectifyHookTypes";
 
 /**
  * RectifyFiber to control dom
  */
 export type RectifyFiber = {
+  /**
+   * To determine this fiber is host root, host component, ..etc.
+   */
+  __type__: symbol;
+
   /**
    * A fiber alternate with current fiber
    */
@@ -50,7 +56,7 @@ export type RectifyFiber = {
   /**
    * Fiber will be delete in DOM
    */
-  deletions: Iterable<RectifyFiber> | null;
+  deletions: Array<RectifyFiber> | null;
 
   /**
    * Next props
@@ -70,5 +76,10 @@ export type RectifyFiber = {
   /**
    * Point to node in dom
    */
-  stateNode: Element | Text | null;
+  stateNode: any;
+
+  /**
+   *
+   */
+  hooks: Array<Hook> | null;
 };

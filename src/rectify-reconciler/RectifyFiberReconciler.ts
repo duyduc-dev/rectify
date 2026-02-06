@@ -1,21 +1,26 @@
 import { RectifyNode } from "@rectify/core";
-import { createFiber, createWorkInProgress } from "./RectifyFiber";
+import {
+  createDomFromRectifyElement,
+  createFiber,
+  createFiberFromRectifyElement,
+  createWorkInProgress,
+} from "./RectifyFiber";
 import { RectifyFiber } from "./RectifyFiberTypes";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import {
   getContainerDom,
+  getCurrentFiberRoot,
+  getScheduledNode,
   setContainerDom,
   setCurrentFiberRoot,
   setScheduledNode,
 } from "./RectifyCurrentFiber";
-import {
-  isFunction,
-  isIterable,
-  isPlainObject,
-  toArray,
-} from "@rectify/shared/utilities";
+import { isFunction, isTextNode, toArray } from "@rectify/shared/utilities";
 import { RectifyElementType, RectifyKey } from "@rectify/core/RectifyTypes";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
+import { isValidRectifyElement } from "@rectify/core/RectifyCoreService";
+import { updateDomProps } from "@rectify/rectify-binding/events/RectifyEvents";
+import { withHooks } from "@rectify/rectify-hook/RectifyHook";
 
 /**
  * Create a Fiber host root
@@ -63,7 +68,7 @@ const performUnitOfWork = (wip: RectifyFiber): RectifyFiber | null => {
       {
         const Component = wip.type;
         if (!isFunction(Component)) break;
-        const nextChildren = Component(wip.pendingProps);
+        const nextChildren = withHooks(wip, Component, wip.pendingProps);
         reconcileChildren(wip, nextChildren);
       }
       break;
@@ -98,52 +103,290 @@ const buildKeyOnFiber = (
 };
 
 const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
-  let oldFiber = wip.alternate?.child ?? null;
+  // old list head (for positional matching)
+  let oldFiberHead = wip.alternate?.child ?? null;
+  let oldFiber = oldFiberHead;
+
   let prevSibling: RectifyFiber | null = null;
 
-  // keyed map for old siblings (simple impl)
-  const oldMap = new Map<string, RectifyFiber>();
+  // keyed map (ONLY keyed old fibers)
+  const keyedOld = new Map<string, RectifyFiber>();
   while (oldFiber) {
-    const key = buildKeyOnFiber(oldFiber.key, oldFiber.type);
-    oldMap.set(key, oldFiber);
+    if (oldFiber.key != null) {
+      keyedOld.set(buildKeyOnFiber(oldFiber.key, oldFiber.type), oldFiber);
+    }
     oldFiber = oldFiber.sibling;
   }
 
+  // reset oldFiber pointer back for positional matching
+  oldFiber = oldFiberHead;
+
   let index = 0;
 
-  for (const childRectifyNode of toArray(nextChildren)) {
-    const childKey =
-      isPlainObject(childRectifyNode) && !isIterable(childRectifyNode)
-        ? childRectifyNode?.key
-        : "";
-    const childType =
-      isPlainObject(childRectifyNode) && !isIterable(childRectifyNode)
-        ? childRectifyNode?.type
-        : null;
-    const key = buildKeyOnFiber(childKey, childType ?? "");
-    const matchedOld = oldMap.get(key) ?? null;
+  for (const child of toArray(nextChildren)) {
+    let newFiber: RectifyFiber | null = null;
 
-    let newFiber: RectifyFiber;
-    if (matchedOld) {
-      newFiber = createWorkInProgress(
-        matchedOld,
-        isPlainObject(childRectifyNode) && !isIterable(childRectifyNode)
-          ? childRectifyNode.props
-          : childRectifyNode,
-      );
-      newFiber.type = childType;
-      // Decide update flag by shallow props compare
-      if (matchedOld.memoizedProps !== newFiber.pendingProps)
-        newFiber.flags |= RectifyFiberFlags.Update;
-      oldMap.delete(key);
-    } else {
-      // newFiber = createFiberFromVNode(childVNode);
-      // newFiber.pendingProps = (childVNode as any).props;
-      // newFiber.flags |= RectifyFiberFlags.Placement;
+    // -------------------------
+    // 1) TEXT NODE (positional)
+    // -------------------------
+    if (isValidRectifyElement(child) && isTextNode(child)) {
+      const textContent = String(child.props);
+
+      let matchedOld: RectifyFiber | null = null;
+      if (
+        oldFiber &&
+        oldFiber.key == null &&
+        oldFiber.workTag === RectifyFiberWorkTag.HostText
+      ) {
+        matchedOld = oldFiber;
+      }
+
+      if (matchedOld) {
+        newFiber = createWorkInProgress(matchedOld, textContent);
+        if (matchedOld.memoizedProps !== textContent) {
+          newFiber.flags |= RectifyFiberFlags.Update;
+        }
+      } else {
+        newFiber = createFiber(RectifyFiberWorkTag.HostText);
+        newFiber.pendingProps = textContent;
+        newFiber.flags |= RectifyFiberFlags.Placement;
+      }
+
+      newFiber.type = "TEXT";
+      newFiber.key = null;
+
+      // advance positional oldFiber if it was unkeyed (whether matched or not)
+      if (oldFiber && oldFiber.key == null) oldFiber = oldFiber.sibling;
     }
+
+    // -------------------------
+    // 2) ELEMENT NODE
+    // -------------------------
+    else if (isValidRectifyElement(child)) {
+      const childKey = child.key ?? null;
+      const childType = child.type;
+
+      // 2a) keyed element → keyed match
+      if (childKey != null) {
+        const mapKey = buildKeyOnFiber(childKey, childType ?? "");
+        const matchedOld = keyedOld.get(mapKey) ?? null;
+
+        if (matchedOld) {
+          newFiber = createWorkInProgress(matchedOld, child.props);
+          newFiber.type = childType;
+
+          if (matchedOld.memoizedProps !== child.props) {
+            newFiber.flags |= RectifyFiberFlags.Update;
+          }
+
+          keyedOld.delete(mapKey);
+        } else {
+          newFiber = createFiberFromRectifyElement(child);
+          newFiber.pendingProps = child.props;
+          newFiber.type = childType;
+          newFiber.key = childKey;
+          newFiber.flags |= RectifyFiberFlags.Placement;
+        }
+      }
+
+      // 2b) unkeyed element → positional match
+      else {
+        let matchedOld: RectifyFiber | null = null;
+        if (oldFiber && oldFiber.key == null && oldFiber.type === childType) {
+          matchedOld = oldFiber;
+        }
+
+        if (matchedOld) {
+          newFiber = createWorkInProgress(matchedOld, child.props);
+          newFiber.type = childType;
+
+          if (matchedOld.memoizedProps !== child.props) {
+            newFiber.flags |= RectifyFiberFlags.Update;
+          }
+        } else {
+          newFiber = createFiberFromRectifyElement(child);
+          newFiber.pendingProps = child.props;
+          newFiber.type = childType;
+          newFiber.key = null;
+          newFiber.flags |= RectifyFiberFlags.Placement;
+        }
+
+        if (oldFiber && oldFiber.key == null) oldFiber = oldFiber.sibling;
+      }
+    }
+
+    // ignore booleans/null/iterables etc (should be normalized earlier)
+    else {
+      continue;
+    }
+
+    // link into wip child list
+    newFiber.return = wip;
+    newFiber.index = index++;
+
+    if (!prevSibling) wip.child = newFiber;
+    else prevSibling.sibling = newFiber;
+
+    prevSibling = newFiber;
+  }
+
+  // -------------------------
+  // deletions: anything left
+  // -------------------------
+
+  // (A) leftover keyed old fibers
+  if (keyedOld.size) {
+    wip.deletions = wip.deletions ?? [];
+    for (const [, f] of keyedOld) {
+      f.flags |= RectifyFiberFlags.Deletion;
+      wip.deletions.push(f);
+    }
+  }
+
+  // (B) leftover positional old fibers (unkeyed chain not consumed)
+  while (oldFiber) {
+    if (oldFiber.key == null) {
+      wip.deletions = wip.deletions ?? [];
+      oldFiber.flags |= RectifyFiberFlags.Deletion;
+      wip.deletions.push(oldFiber);
+    }
+    oldFiber = oldFiber.sibling;
   }
 };
 
-const commitWork = (wipRoot: RectifyFiber) => {};
+function safelyRemoveChild(parent: Node, child: Node) {
+  // avoids NotFoundError if already moved/removed
+  if (child.parentNode === parent) parent.removeChild(child);
+}
 
-export { createContainer, updateContainer };
+function commitDeletion(fiber: RectifyFiber) {
+  // If this is a host node, remove it from *its* host parent
+  if (isHostFiber(fiber)) {
+    const parentDom = getParentDom(fiber);
+    safelyRemoveChild(parentDom, fiber.stateNode);
+    return;
+  }
+
+  let child = fiber.child;
+  while (child) {
+    commitDeletion(child);
+    child = child.sibling;
+  }
+}
+
+function getParentDom(fiber: RectifyFiber): Node {
+  if (fiber.workTag === RectifyFiberWorkTag.HostRoot)
+    return fiber.stateNode as Node;
+  let p = fiber.return;
+  while (p) {
+    if (p.workTag === RectifyFiberWorkTag.HostComponent)
+      return p.stateNode as Node;
+    if (p.workTag === RectifyFiberWorkTag.HostRoot) return p.stateNode as Node;
+    p = p.return;
+  }
+  throw new Error("No parent DOM found.");
+}
+
+function commitWork(fiber: RectifyFiber) {
+  const parentDom = getParentDom(fiber);
+
+  // Deletions attached on parent (wip)
+  const deletions = fiber.deletions;
+  if (deletions && deletions.length) {
+    for (const d of deletions) commitDeletion(d);
+  }
+
+  if (fiber.workTag === RectifyFiberWorkTag.HostComponent) {
+    if (!fiber.stateNode) {
+      fiber.stateNode = createDomFromRectifyElement({
+        __type__: Symbol.for("placeholder"),
+        type: fiber.type,
+        key: fiber.key,
+        props: fiber.pendingProps,
+      });
+      updateDomProps(fiber.stateNode, {}, fiber.pendingProps);
+    } else if (fiber.flags & RectifyFiberFlags.Update) {
+      updateDomProps(
+        fiber.stateNode,
+        fiber.memoizedProps ?? {},
+        fiber.pendingProps ?? {},
+      );
+    }
+
+    if (fiber.flags & RectifyFiberFlags.Placement) {
+      if (fiber.flags & RectifyFiberFlags.Placement) {
+        const before = getHostSibling(fiber);
+        console.log("before", before);
+
+        if (before) {
+          parentDom.insertBefore(fiber.stateNode, before);
+        } else {
+          parentDom.appendChild(fiber.stateNode);
+        }
+      }
+    }
+  }
+
+  if (fiber.workTag === RectifyFiberWorkTag.HostText) {
+    if (!fiber.stateNode) {
+      fiber.stateNode = document.createTextNode(
+        String(fiber.pendingProps ?? ""),
+      );
+    } else if (fiber.flags & RectifyFiberFlags.Update) {
+      if ((fiber.stateNode as Text).nodeValue !== fiber.pendingProps) {
+        (fiber.stateNode as Text).nodeValue = String(fiber.pendingProps ?? "");
+      }
+    }
+
+    if (fiber.flags & RectifyFiberFlags.Placement) {
+      if (fiber.flags & RectifyFiberFlags.Placement) {
+        const before = getHostSibling(fiber);
+        if (before) {
+          parentDom.insertBefore(fiber.stateNode, before);
+        } else {
+          parentDom.appendChild(fiber.stateNode);
+        }
+      }
+    }
+  }
+
+  // finalize memoizedProps
+  fiber.memoizedProps = fiber.pendingProps;
+
+  // commit children
+  let child = fiber.child;
+  while (child) {
+    commitWork(child);
+    child = child.sibling;
+  }
+}
+
+const scheduleUpdateOnRoot = () => {
+  const currentRoot = getCurrentFiberRoot();
+  const scheduleContainer = getContainerDom();
+
+  if (!currentRoot || !scheduleContainer) return;
+  updateContainer(getScheduledNode(), currentRoot);
+};
+
+function isHostFiber(fiber: RectifyFiber) {
+  return (
+    fiber.workTag === RectifyFiberWorkTag.HostComponent ||
+    fiber.workTag === RectifyFiberWorkTag.HostText
+  );
+}
+
+function getHostSibling(fiber: RectifyFiber): Node | null {
+  let node = fiber.sibling;
+
+  while (node) {
+    if (isHostFiber(node) && !(node.flags & RectifyFiberFlags.Placement)) {
+      return node.stateNode;
+    }
+    node = node.sibling;
+  }
+
+  return null;
+}
+
+export { createContainer, updateContainer, scheduleUpdateOnRoot };

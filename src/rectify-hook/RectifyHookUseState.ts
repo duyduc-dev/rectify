@@ -5,7 +5,9 @@ import {
   setHookIndex,
 } from "./RectifyHookRenderingFiber";
 import { Hook, StateDispatcher, StateUpdater } from "./RectifyHookTypes";
-import { scheduleUpdateOnRoot } from "@rectify/rectify-reconciler/RectifyFiberReconciler";
+import { scheduleUpdateOnFiber } from "@rectify/rectify-reconciler/RectifyFiberReconciler";
+
+type StateInitializer<S> = S | (() => S);
 
 const getInitialState = <S>(initialState: S | (() => S)): S =>
   isFunction(initialState) ? initialState() : initialState;
@@ -13,50 +15,48 @@ const getInitialState = <S>(initialState: S | (() => S)): S =>
 const getState = <S>(update: StateUpdater<S>, prevState: S) =>
   isFunction(update) ? update(prevState) : update;
 
-export const useState = <S>(
-  initialState: S | (() => S),
-): [S, StateDispatcher<S>] => {
+export function useState<S>(): [S | undefined, StateDispatcher<S | undefined>];
+export function useState<S>(initialState: S): [S, StateDispatcher<S>];
+export function useState<S>(initialState: () => S): [S, StateDispatcher<S>];
+export function useState<S>(
+  initialState?: StateInitializer<S>,
+): [S | undefined, StateDispatcher<S | undefined>] {
   const fiber = getCurrentlyRenderingFiber();
+  if (!fiber)
+    throw new Error("useState must be used within a function component.");
+
   const hookIndex = getHookIndex();
-
-  if (!fiber) {
-    throw new Error("useState() must be called inside a function component.");
-  }
-
   const prevFiber = fiber.alternate;
-  const prevHook = prevFiber?.hooks?.[hookIndex] as Hook<S> | undefined;
+  const prevHook = prevFiber?.hooks?.[hookIndex] as
+    | Hook<S | undefined>
+    | undefined;
 
-  // reuse SAME queue reference
-  const hook: Hook<S> = prevHook
-    ? { state: prevHook.state, queue: prevHook.queue }
-    : { state: getInitialState(initialState), queue: [] };
-
-  console.log("hook", hook);
-
-  // consume updates exactly once
-  if (hook.queue.length) {
-    for (const update of hook.queue) {
-      hook.state = getState(update, hook.state);
-    }
-    hook.queue.length = 0;
-  }
+  const newHook: Hook<S | undefined> = prevHook
+    ? {
+        state: prevHook.state,
+        queue: prevHook.queue,
+      }
+    : {
+        state: getInitialState(initialState),
+        queue: [],
+      };
 
   fiber.hooks = fiber.hooks ?? [];
-  fiber.hooks[hookIndex] = hook;
+  fiber.hooks[hookIndex] = newHook;
 
-  const dispatch: StateDispatcher<S> = (update) => {
-    console.log("hook", { hook, fiber });
+  let state = newHook.state;
 
-    const committed = fiber.alternate;
-    if (!committed) return;
+  if (newHook.queue.length > 0) {
+    for (const update of newHook.queue) {
+      state = getState(update, state);
+    }
+  }
 
-    const committedHook = committed.hooks?.[hookIndex];
-    if (!committedHook) return;
-
-    committedHook.queue.push(update);
-    scheduleUpdateOnRoot();
+  const dispatch: StateDispatcher<S | undefined> = (updater) => {
+    newHook.queue.push(updater);
+    scheduleUpdateOnFiber(fiber);
   };
 
   setHookIndex(hookIndex + 1);
-  return [hook.state, dispatch];
-};
+  return [state, dispatch];
+}

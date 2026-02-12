@@ -61,10 +61,12 @@ const createWorkInProgress = (
     current.alternate = wip;
   } else {
     wip.pendingProps = pendingProps;
+
     wip.flags = RectifyFiberFlags.NoFlags;
     wip.deletions = null;
   }
 
+  wip.memoizedProps = current.memoizedProps;
   wip.return = null;
   wip.child = null;
   wip.sibling = null;

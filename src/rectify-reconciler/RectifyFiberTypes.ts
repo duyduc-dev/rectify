@@ -2,7 +2,7 @@ import { RectifyKey } from "@rectify/core";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
 import { RectifyElementType } from "@rectify/core/RectifyTypes";
-import { Hook } from "@rectify/rectify-hook/RectifyHookTypes";
+import { EffectHook, Hook } from "@rectify/rectify-hook/RectifyHookTypes";
 
 /**
  * RectifyFiber to control dom
@@ -79,7 +79,12 @@ export type RectifyFiber = {
   stateNode: any;
 
   /**
-   *
+   * Store hook state
    */
   hooks: Array<Hook> | null;
+
+  /**
+   * Store effect
+   */
+  effects: EffectHook[] | null;
 };

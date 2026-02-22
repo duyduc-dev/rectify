@@ -5,12 +5,14 @@ type InstanceCurrentFiber = {
   CurrentFiberRoot: RectifyFiber | null;
   ContainerDom: Element | null;
   ScheduledNode: RectifyNode | null;
+  isRenderScheduled: boolean;
 };
 
 const instance: InstanceCurrentFiber = {
   CurrentFiberRoot: null,
   ContainerDom: null,
   ScheduledNode: null,
+  isRenderScheduled: false,
 };
 
 export const setCurrentFiberRoot = (fiber: RectifyFiber | null) => {
@@ -32,4 +34,11 @@ export const setScheduledNode = (scheduledNode: RectifyNode | null) => {
 };
 export const getScheduledNode = () => {
   return instance.ScheduledNode;
+};
+
+export const setRenderingScheduled = (isRenderScheduled: boolean) => {
+  instance.isRenderScheduled = isRenderScheduled;
+};
+export const hasRenderingScheduled = () => {
+  return instance.isRenderScheduled;
 };

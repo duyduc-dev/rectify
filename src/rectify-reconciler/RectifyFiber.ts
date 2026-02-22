@@ -22,7 +22,9 @@ const createFiber = (
   key: RectifyKey = null,
 ): RectifyFiber => {
   return {
-    __type__: RECTIFY_ELEMENT_TYPE,
+    __type__: isTextNode(pendingProps)
+      ? RECTIFY_TEXT_TYPE
+      : RECTIFY_ELEMENT_TYPE,
     workTag,
     index: 0,
     pendingProps,
@@ -37,6 +39,7 @@ const createFiber = (
     return: null,
     deletions: null,
     hooks: null,
+    effects: null,
   };
 };
 
@@ -67,10 +70,10 @@ const createWorkInProgress = (
   }
 
   wip.memoizedProps = current.memoizedProps;
-  wip.return = null;
-  wip.child = null;
-  wip.sibling = null;
-  wip.index = 0;
+  wip.return = current.return;
+  wip.child = current.child;
+  wip.sibling = current.sibling;
+  wip.index = current.index;
 
   return wip;
 };

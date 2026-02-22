@@ -2,9 +2,15 @@ import { isFunction } from "@rectify/shared/utilities";
 import {
   getCurrentlyRenderingFiber,
   getHookIndex,
-  setHookIndex,
+  nextHookIndex,
 } from "./RectifyHookRenderingFiber";
-import { Hook, StateDispatcher, StateUpdater } from "./RectifyHookTypes";
+import {
+  Hook,
+  HookType,
+  StateDispatcher,
+  StateHook,
+  StateUpdater,
+} from "./RectifyHookTypes";
 import { scheduleUpdateOnFiber } from "@rectify/rectify-reconciler/RectifyFiberReconciler";
 
 type StateInitializer<S> = S | (() => S);
@@ -28,15 +34,17 @@ export function useState<S>(
   const hookIndex = getHookIndex();
   const prevFiber = fiber.alternate;
   const prevHook = prevFiber?.hooks?.[hookIndex] as
-    | Hook<S | undefined>
+    | StateHook<S | undefined>
     | undefined;
 
   const newHook: Hook<S | undefined> = prevHook
     ? {
+        type: HookType.STATE,
         state: prevHook.state,
         queue: prevHook.queue,
       }
     : {
+        type: HookType.STATE,
         state: getInitialState(initialState),
         queue: [],
       };
@@ -44,12 +52,11 @@ export function useState<S>(
   fiber.hooks = fiber.hooks ?? [];
   fiber.hooks[hookIndex] = newHook;
 
-  let state = newHook.state;
-
   if (newHook.queue.length > 0) {
     for (const update of newHook.queue) {
-      state = getState(update, state);
+      newHook.state = getState(update, newHook.state);
     }
+    newHook.queue = [];
   }
 
   const dispatch: StateDispatcher<S | undefined> = (updater) => {
@@ -57,6 +64,6 @@ export function useState<S>(
     scheduleUpdateOnFiber(fiber);
   };
 
-  setHookIndex(hookIndex + 1);
-  return [state, dispatch];
+  nextHookIndex();
+  return [newHook.state, dispatch] as const;
 }

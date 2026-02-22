@@ -20,8 +20,3 @@ export const toTextNodeElement = (v: RectifyText): RectifyElement => {
     props: v,
   };
 };
-
-export const isValidRectifyTextElement = (v: unknown): v is RectifyElement => {
-  const vAny = v as any;
-  return vAny?.__type__ === RECTIFY_TEXT_TYPE;
-};

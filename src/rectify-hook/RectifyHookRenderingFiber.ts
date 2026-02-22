@@ -1,4 +1,5 @@
 import { RectifyFiber } from "@rectify/rectify-reconciler/RectifyFiberTypes";
+import { isFunction } from "@rectify/shared/utilities";
 
 type Instance = {
   currentlyRenderingFiber: RectifyFiber | null;
@@ -16,7 +17,10 @@ export const setCurrentlyRenderingFiber = (fiber: RectifyFiber | null) => {
 export const getCurrentlyRenderingFiber = () =>
   instance.currentlyRenderingFiber;
 
-export const setHookIndex = (index: number) => {
-  instance.hookIndex = index;
+export const setHookIndex = (index: number | ((prev: number) => number)) => {
+  instance.hookIndex = isFunction(index) ? index(instance.hookIndex) : index;
 };
 export const getHookIndex = () => instance.hookIndex;
+export const nextHookIndex = () => {
+  setHookIndex((prev) => prev + 1);
+};

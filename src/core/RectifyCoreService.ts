@@ -18,5 +18,6 @@ export const toTextNodeElement = (v: RectifyText): RectifyElement => {
     key: null,
     type: null,
     props: v,
+    index: 0,
   };
 };

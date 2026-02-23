@@ -4,4 +4,7 @@ export {
   RectifyKey,
   RectifyNode,
   RectifyText,
+  RectifyFunctionComponent,
+  RectifyFunctionComponentConfigs,
+  FC,
 } from "./RectifyTypes";

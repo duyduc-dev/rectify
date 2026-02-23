@@ -1,4 +1,6 @@
 import { isPlainObject, isTextNode } from "@rectify/shared/utilities";
+import { RectifyFiber } from "./RectifyFiberTypes";
+import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 
 const CHILDREN_KEY = "children";
 
@@ -35,3 +37,25 @@ export const hasPropsChanged = (
 
   return true;
 };
+
+/**
+ * a utility function to walk through the fiber tree and apply a visitor function to each fiber
+ * @param fiber 
+ * @param visitor 
+ */
+export const walkFiberTree = (
+  fiber: RectifyFiber,
+  visitor: (fiber: RectifyFiber) => void,
+) => {
+  visitor(fiber);
+
+  let child = fiber.child;
+  while (child) {
+    walkFiberTree(child, visitor);
+    child = child.sibling;
+  }
+};
+
+export const isHost = (f: RectifyFiber) =>
+  f.workTag === RectifyFiberWorkTag.HostComponent ||
+  f.workTag === RectifyFiberWorkTag.HostText;

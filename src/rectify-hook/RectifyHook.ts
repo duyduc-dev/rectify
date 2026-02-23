@@ -17,12 +17,15 @@ const finishUsingHooks = () => {
 const withHooks = (
   fiber: RectifyFiber,
   Component: RectifyFunctionComponent,
-  pendingProps: unknown,
 ) => {
-  prepareUseHooks(fiber);
-  const children = Component(pendingProps);
-  finishUsingHooks();
-  return children;
+  const NewComponent = (pendingProps: unknown) => {
+    prepareUseHooks(fiber);
+    const children = Component(pendingProps);
+    finishUsingHooks();
+    return children;
+  };
+
+  return NewComponent as RectifyFunctionComponent;
 };
 
 export { withHooks };

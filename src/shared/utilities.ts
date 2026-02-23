@@ -52,3 +52,5 @@ export function shallowEqual<T extends Record<string, any>>(
 
   return true;
 }
+
+export const assignObject = Object.assign;

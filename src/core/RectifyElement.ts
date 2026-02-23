@@ -19,6 +19,7 @@ export const createElement = (
   return {
     __type__: RECTIFY_ELEMENT_TYPE,
     key: elementKey,
+    index: 0,
     type,
     props: withNormalizeProps(props),
   };

@@ -58,10 +58,6 @@ const updateContainer = (
     fiber,
     Object.assign({}, fiber.pendingProps, { children }),
   );
-  console.log("fiber - root", {
-    fiber,
-    wipRoot,
-  });
 
   if (!isBatchUpdate) {
     wipRoot.stateNode = getContainerDom();
@@ -122,8 +118,9 @@ const performUnitOfWork = (wip: RectifyFiber): RectifyFiber | null => {
 const buildKeyOnFiber = (
   key: RectifyKey = "",
   type: RectifyElementType = "",
+  uniqueId = "",
 ) => {
-  return `${key}__${type}__key`;
+  return `__${key ?? ""}__${type ?? ""}__key` + uniqueId;
 };
 
 const getParentDom = (fiber: RectifyFiber): Node => {
@@ -144,6 +141,22 @@ const getParentDom = (fiber: RectifyFiber): Node => {
   throw new Error("No parent DOM found.");
 };
 
+function getHostSibling(fiber: RectifyFiber): Node | null {
+  let sibling = fiber.sibling;
+
+  while (sibling) {
+    if (
+      sibling.workTag === RectifyFiberWorkTag.HostComponent ||
+      sibling.workTag === RectifyFiberWorkTag.HostRoot
+    ) {
+      return sibling.stateNode;
+    }
+    sibling = sibling.sibling;
+  }
+
+  return null;
+}
+
 const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
   const currentFiber = wip.alternate;
   const currentFiberChildHead = currentFiber?.child;
@@ -153,37 +166,41 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
   let oldCurrentFiberChild = currentFiberChildHead;
   let prevSibling: RectifyFiber | null = null;
 
-  toArray(nextChildren).forEach((child) => {
-    if (!isValidRectifyElement(child)) {
-      if (oldCurrentFiberChild) {
-        addFlagToFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
-        deletionFiber.push(oldCurrentFiberChild);
-        console.log("delete >>>>", oldCurrentFiberChild);
+  const existingChildren = new Map<string, RectifyFiber>();
+  while (oldCurrentFiberChild) {
+    const key = buildKeyOnFiber(
+      oldCurrentFiberChild.key,
+      oldCurrentFiberChild.type,
+      oldCurrentFiberChild.pendingProps + "",
+    );
+    existingChildren.set(key, oldCurrentFiberChild);
+    oldCurrentFiberChild = oldCurrentFiberChild.sibling;
+  }
 
-        oldCurrentFiberChild = oldCurrentFiberChild.sibling;
-      }
-      return;
-    }
+  toArray(nextChildren).forEach((child) => {
+    if (!isValidRectifyElement(child)) return;
+
     const childKey = child.key ?? null;
     const childType = child.type;
+
+    const lookupKey = buildKeyOnFiber(childKey, childType, String(child.props));
+    const matched = existingChildren.get(lookupKey);
 
     let newFiber: RectifyFiber | null = null;
 
     const isSame =
-      oldCurrentFiberChild &&
-      oldCurrentFiberChild.key === childKey &&
-      oldCurrentFiberChild.type === childType &&
-      !hasFLagOnFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
+      matched && !hasFLagOnFiber(matched, RectifyFiberFlags.Deletion);
 
     if (isSame) {
-      newFiber = createWorkInProgress(oldCurrentFiberChild!, child.props);
+      newFiber = createWorkInProgress(matched, child.props);
       addFlagToFiber(newFiber, RectifyFiberFlags.Update);
+      existingChildren.delete(lookupKey);
     } else {
-      if (oldCurrentFiberChild) {
-        addFlagToFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
-        deletionFiber.push(oldCurrentFiberChild);
+      if (matched) {
+        addFlagToFiber(matched, RectifyFiberFlags.Deletion);
+        existingChildren.delete(lookupKey);
+        deletionFiber.push(matched);
       }
-
       newFiber = createFiberFromRectifyElement(child);
       addFlagToFiber(newFiber, RectifyFiberFlags.Placement);
     }
@@ -193,18 +210,15 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
     newFiber.type = childType;
     newFiber.key = childKey;
 
-    oldCurrentFiberChild = oldCurrentFiberChild?.sibling;
-
     // Link sibling fiber
     if (!prevSibling) wip.child = newFiber;
     else prevSibling.sibling = newFiber;
     prevSibling = newFiber;
   });
 
-  while (oldCurrentFiberChild) {
-    addFlagToFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
-    deletionFiber.push(oldCurrentFiberChild);
-    oldCurrentFiberChild = oldCurrentFiberChild.sibling;
+  for (const [, existing] of existingChildren) {
+    deletionFiber.push(existing);
+    addFlagToFiber(existing, RectifyFiberFlags.Deletion);
   }
 
   wip.deletions = deletionFiber;
@@ -249,8 +263,14 @@ const commitHostComponent = (wip: RectifyFiber) => {
   }
 
   if (hasFLagOnFiber(wip, RectifyFiberFlags.Placement)) {
+    const sibling = getHostSibling(wip);
     const parentDom = getParentDom(wip);
-    parentDom.appendChild(wip.stateNode);
+
+    if (sibling) {
+      parentDom.insertBefore(wip.stateNode, sibling);
+    } else {
+      parentDom.appendChild(wip.stateNode);
+    }
     removeFlagFromFiber(wip, RectifyFiberFlags.Placement);
   }
 
@@ -267,8 +287,14 @@ const commitHostText = (wip: RectifyFiber) => {
   }
 
   if (hasFLagOnFiber(wip, RectifyFiberFlags.Placement)) {
+    const sibling = getHostSibling(wip);
     const parentDom = getParentDom(wip);
-    parentDom.appendChild(wip.stateNode);
+
+    if (sibling) {
+      parentDom.insertBefore(wip.stateNode, sibling);
+    } else {
+      parentDom.appendChild(wip.stateNode);
+    }
     removeFlagFromFiber(wip, RectifyFiberFlags.Placement);
   }
 

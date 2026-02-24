@@ -40,19 +40,30 @@ export const hasPropsChanged = (
 
 /**
  * a utility function to walk through the fiber tree and apply a visitor function to each fiber
- * @param fiber 
- * @param visitor 
+ * @param fiber
+ * @param visitor
  */
 export const walkFiberTree = (
   fiber: RectifyFiber,
   visitor: (fiber: RectifyFiber) => void,
+  fromBottomUp = false,
 ) => {
+  if (fromBottomUp) {
+    let child = fiber.child;
+    while (child) {
+      walkFiberTree(child, visitor);
+      child = child.sibling;
+    }
+  }
+
   visitor(fiber);
 
-  let child = fiber.child;
-  while (child) {
-    walkFiberTree(child, visitor);
-    child = child.sibling;
+  if (!fromBottomUp) {
+    let child = fiber.child;
+    while (child) {
+      walkFiberTree(child, visitor);
+      child = child.sibling;
+    }
   }
 };
 

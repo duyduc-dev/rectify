@@ -31,6 +31,8 @@ const withNormalizeChildren = (props: any): Iterable<RectifyElement> => {
         const childElement = child;
         childElement.index = index++;
         out.push(childElement);
+      } else {
+        out.push(child as RectifyElement)
       }
     }
     return out;

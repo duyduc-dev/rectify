@@ -49,9 +49,7 @@ export type RectifyNode =
   | RectifyText
   | RectifyElement
   | Iterable<RectifyNode>
-  | boolean
-  | null
-  | undefined;
+  | RectifyIgnorable;
 
 /**
  * The type representing a key for Rectify elements,
@@ -62,6 +60,11 @@ export type RectifyKey = string | number | null | undefined;
  * The type representing text nodes in Rectify,
  */
 export type RectifyText = string | number;
+
+/**
+ * The type of empty
+ */
+export type RectifyIgnorable = null | undefined | boolean | void;
 
 /**
  * The type representing the props of a Rectify element,

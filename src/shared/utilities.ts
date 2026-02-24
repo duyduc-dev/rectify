@@ -54,3 +54,5 @@ export function shallowEqual<T extends Record<string, any>>(
 }
 
 export const assignObject = Object.assign;
+
+export const isBool = (v: unknown) => typeof v === "boolean";

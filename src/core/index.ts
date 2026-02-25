@@ -8,3 +8,4 @@ export {
   RectifyFunctionComponentConfigs,
   FC,
 } from "./RectifyTypes";
+export { Fragment } from "./RectifyComponent";

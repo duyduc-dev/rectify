@@ -3,4 +3,5 @@ export enum RectifyFiberWorkTag {
   HostComponent /*      */ = 1,
   HostText /*           */ = 2,
   FunctionComponent /*  */ = 3,
+  Fragment /*           */ = 4,
 }

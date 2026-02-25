@@ -1,6 +1,7 @@
 import { isPlainObject, isTextNode } from "@rectify/shared/utilities";
 import { RectifyFiber } from "./RectifyFiberTypes";
 import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
+import { RECTIFY_FRAGMENT_TYPE } from "@rectify/core/RectifyElementConstants";
 
 const CHILDREN_KEY = "children";
 
@@ -70,3 +71,7 @@ export const walkFiberTree = (
 export const isHost = (f: RectifyFiber) =>
   f.workTag === RectifyFiberWorkTag.HostComponent ||
   f.workTag === RectifyFiberWorkTag.HostText;
+
+export const isFiberFragment = (fiber: RectifyFiber): boolean => {
+  return fiber.__type__ === RECTIFY_FRAGMENT_TYPE;
+};

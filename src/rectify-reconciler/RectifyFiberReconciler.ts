@@ -19,6 +19,7 @@ import { assignObject, isFunction, toArray } from "@rectify/shared/utilities";
 import { RectifyElementType, RectifyKey } from "@rectify/core/RectifyTypes";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
 import {
+  isRectifyElement,
   isRectifyIgnorable,
   isValidRectifyElement,
 } from "@rectify/core/RectifyCoreService";
@@ -26,10 +27,13 @@ import { updateDomProps } from "@rectify/rectify-binding/events/RectifyEvents";
 import { withHooks } from "@rectify/rectify-hook/RectifyHook";
 import {
   addFlagToFiber,
-  hasFLagOnFiber,
+  hasFlagOnFiber,
   removeFlagFromFiber,
 } from "./RectifyFiberFlagsService";
-import { RECTIFY_ELEMENT_TYPE } from "@rectify/core/RectifyElementConstants";
+import {
+  RECTIFY_ELEMENT_TYPE,
+  RECTIFY_FRAGMENT_TYPE,
+} from "@rectify/core/RectifyElementConstants";
 import { flushPassiveEffects } from "@rectify/rectify-hook/RectifyHookUseEffect";
 import { isEffectHook } from "@rectify/rectify-hook/RectifyHookService";
 import { isHost, walkFiberTree } from "./RectifyFiberReconcilerService";
@@ -60,12 +64,9 @@ const updateContainer = (
   setScheduledNode(children);
   const wipRoot = createWorkInProgress(
     fiber,
-    Object.assign({}, fiber.pendingProps, { children }),
+    assignObject({}, fiber.pendingProps, { children }),
   );
-
-  if (!isBatchUpdate) {
-    wipRoot.stateNode = getContainerDom();
-  }
+  wipRoot.stateNode = getContainerDom();
 
   const finished = renderRoot(wipRoot);
   setCurrentFiberRoot(finished);
@@ -170,13 +171,6 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
   const nextChildrenArray = toArray(nextChildren);
 
   nextChildrenArray.forEach((child) => {
-    if (isRectifyIgnorable(child)) {
-      if (oldCurrentFiberChild) {
-        addFlagToFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
-        deletionFiber.push(oldCurrentFiberChild);
-        oldCurrentFiberChild = oldCurrentFiberChild?.sibling;
-      }
-    }
     if (!isValidRectifyElement(child)) return;
 
     const childKey = child.key ?? null;
@@ -185,8 +179,8 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
     const matched =
       oldCurrentFiberChild &&
       oldCurrentFiberChild?.key === childKey &&
-      oldCurrentFiberChild.type === childType &&
-      !hasFLagOnFiber(oldCurrentFiberChild!, RectifyFiberFlags.Deletion);
+      oldCurrentFiberChild?.type === childType &&
+      !hasFlagOnFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
 
     let newFiber: RectifyFiber | null = null;
 
@@ -197,15 +191,16 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
     } else {
       if (oldCurrentFiberChild) {
         addFlagToFiber(oldCurrentFiberChild, RectifyFiberFlags.Deletion);
-        deletionFiber.push(oldCurrentFiberChild!);
+        deletionFiber.push(oldCurrentFiberChild);
         oldCurrentFiberChild = oldCurrentFiberChild?.sibling;
       }
       newFiber = createFiberFromRectifyElement(child);
-      addFlagToFiber(newFiber, RectifyFiberFlags.Placement);
+      if (!isRectifyElement(child, RECTIFY_FRAGMENT_TYPE))
+        addFlagToFiber(newFiber, RectifyFiberFlags.Placement);
     }
 
     newFiber.return = wip;
-    newFiber.index = index++;
+    newFiber.index = isRectifyIgnorable(newFiber.pendingProps) ? -1 : index++;
     newFiber.type = childType;
     newFiber.key = childKey;
 
@@ -222,20 +217,10 @@ const reconcileChildren = (wip: RectifyFiber, nextChildren: RectifyNode) => {
   }
 
   wip.deletions = deletionFiber;
-
-  console.log("reconcile", wip.type, "deletions", deletionFiber);
 };
 
 const commitWork = (wip: RectifyFiber) => {
   walkFiberTree(wip, (wipVisitor) => {
-    console.log(
-      "commit visit",
-      wipVisitor.type,
-      "tag",
-      wipVisitor.workTag,
-      "has deletions",
-      wipVisitor.deletions?.length,
-    );
     if (wipVisitor.deletions?.length) {
       wipVisitor.deletions.forEach(commitDeletion);
       wipVisitor.deletions = [];
@@ -269,7 +254,7 @@ const commitHostComponent = (wip: RectifyFiber) => {
     updateDomProps(dom, {}, wip.pendingProps);
   }
 
-  if (hasFLagOnFiber(wip, RectifyFiberFlags.Placement)) {
+  if (hasFlagOnFiber(wip, RectifyFiberFlags.Placement)) {
     const sibling = getHostSibling(wip);
     const parentDom = getParentDom(wip);
 
@@ -281,7 +266,7 @@ const commitHostComponent = (wip: RectifyFiber) => {
     removeFlagFromFiber(wip, RectifyFiberFlags.Placement);
   }
 
-  if (hasFLagOnFiber(wip, RectifyFiberFlags.Update)) {
+  if (hasFlagOnFiber(wip, RectifyFiberFlags.Update)) {
     updateDomProps(wip.stateNode, wip.memoizedProps, wip.pendingProps);
     removeFlagFromFiber(wip, RectifyFiberFlags.Update);
   }
@@ -289,11 +274,11 @@ const commitHostComponent = (wip: RectifyFiber) => {
 
 const commitHostText = (wip: RectifyFiber) => {
   if (!wip.stateNode) {
-    const textNode = document.createTextNode(String(wip.pendingProps ?? ""));
+    const textNode = document.createTextNode(String(wip.pendingProps));
     wip.stateNode = textNode;
   }
 
-  if (hasFLagOnFiber(wip, RectifyFiberFlags.Placement)) {
+  if (hasFlagOnFiber(wip, RectifyFiberFlags.Placement)) {
     const sibling = getHostSibling(wip);
     const parentDom = getParentDom(wip);
 
@@ -305,24 +290,21 @@ const commitHostText = (wip: RectifyFiber) => {
     removeFlagFromFiber(wip, RectifyFiberFlags.Placement);
   }
 
-  if (hasFLagOnFiber(wip, RectifyFiberFlags.Update)) {
+  if (hasFlagOnFiber(wip, RectifyFiberFlags.Update)) {
     const current = wip.alternate;
     if (current?.pendingProps !== wip.pendingProps) {
-      (wip.stateNode as Text).nodeValue = String(wip.pendingProps ?? "");
+      (wip.stateNode as Text).nodeValue = String(wip.pendingProps);
     }
     removeFlagFromFiber(wip, RectifyFiberFlags.Update);
   }
 };
 
 const commitDeletion = (fiber: RectifyFiber) => {
-  // Host parent OUTSIDE the deleted subtree
-  const parentDom = getParentDom(fiber);
-
   // 1) cleanup effects throughout subtree
   commitPassiveUnmountEffects(fiber);
 
   // 2) remove host nodes (top-most only) from parentDom
-  removeHostNodesFromParent(fiber, parentDom);
+  removeHostNodesFromParent(fiber);
 };
 
 const commitPassiveUnmountEffects = (fiber: RectifyFiber) => {
@@ -335,33 +317,33 @@ const commitPassiveUnmountEffects = (fiber: RectifyFiber) => {
   });
 };
 
-const removeHostNodesFromParent = (fiber: RectifyFiber, parentDom: Node) => {
+const removeHostNodesFromParent = (fiber: RectifyFiber) => {
   walkFiberTree(fiber, (f) => {
     // If this fiber is a host node, remove it ONCE and stop.
     // Descendants are removed automatically by the DOM.
     if (isHost(f)) {
-      if (f?.stateNode?.parentNode === parentDom) {
-        parentDom.removeChild(f.stateNode);
-      } else if (f?.stateNode?.parentNode) {
-        // safer fallback: remove from actual parent
-        f.stateNode.parentNode.removeChild(f.stateNode);
-      }
+      f?.stateNode?.remove();
     }
   });
 };
 
 const scheduleUpdateOnFiber = (fiber: RectifyFiber) => {
   const scheduledRoot = fiber;
+
   if (hasRenderingScheduled()) return;
 
   setRenderingScheduled(true);
 
   queueMicrotask(() => {
-    updateContainer(
-      (fiber?.memoizedProps as any)?.children,
-      scheduledRoot,
-      true,
-    );
+    if (scheduledRoot) {
+      updateContainer(
+        (scheduledRoot.pendingProps as any)?.children,
+        scheduledRoot,
+        true,
+      );
+    }
+    console.log("updated", scheduledRoot);
+
     setRenderingScheduled(false);
   });
 };

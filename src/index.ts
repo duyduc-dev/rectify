@@ -1,6 +1,7 @@
 export {
   jsx,
   createElement,
+  Fragment,
   RectifyElement,
   RectifyKey,
   RectifyNode,

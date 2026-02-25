@@ -28,6 +28,8 @@ export function useState<S>(
   initialState?: StateInitializer<S>,
 ): [S | undefined, StateDispatcher<S | undefined>] {
   const fiber = getCurrentlyRenderingFiber();
+  console.log("useState_fiber", fiber);
+
   if (!fiber)
     throw new Error("useState must be used within a function component.");
 
@@ -60,6 +62,8 @@ export function useState<S>(
   }
 
   const dispatch: StateDispatcher<S | undefined> = (updater) => {
+    const newState = isFunction(updater) ? updater(newHook.state) : updater;
+    if (newState === newHook.state) return;
     newHook.queue.push(updater);
     scheduleUpdateOnFiber(fiber);
   };

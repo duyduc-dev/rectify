@@ -4,10 +4,11 @@ import { RectifyFiberWorkTag } from "./RectifyFiberWorkTag";
 import { RectifyFiberFlags } from "./RectifyFiberFlags";
 import {
   RECTIFY_ELEMENT_TYPE,
+  RECTIFY_FRAGMENT_TYPE,
   RECTIFY_TEXT_TYPE,
 } from "@rectify/core/RectifyElementConstants";
 import { isTextNode } from "@rectify/shared/utilities";
-import { isValidRectifyElement } from "@rectify/core/RectifyCoreService";
+import { isRectifyIgnorable, isValidRectifyElement } from "@rectify/core/RectifyCoreService";
 
 /**
  * Create a fiber
@@ -74,6 +75,7 @@ const createWorkInProgress = (
   wip.child = current.child;
   wip.sibling = current.sibling;
   wip.index = current.index;
+  wip.__type__ = current.__type__;
 
   return wip;
 };
@@ -82,6 +84,12 @@ const createFiberFromRectifyElement = (node: RectifyElement) => {
   if (isValidRectifyElement(node) && isTextNode(node.props)) {
     const f = createFiber(RectifyFiberWorkTag.HostText, node.props, node.key);
     f.__type__ = RECTIFY_TEXT_TYPE;
+    return f;
+  }
+
+  if (isValidRectifyElement(node) && isRectifyIgnorable((node.props as any)?.children)) {
+    const f = createFiber(RectifyFiberWorkTag.Fragment, node.props, node.key);
+    f.__type__ = RECTIFY_FRAGMENT_TYPE;
     return f;
   }
 

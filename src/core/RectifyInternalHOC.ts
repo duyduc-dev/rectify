@@ -1,7 +1,12 @@
 import { isIterable, isTextNode, toArray } from "@rectify/shared/utilities";
 import { RectifyElement } from "./RectifyTypes";
 import { RECTIFY_TEXT_TYPE } from "./RectifyElementConstants";
-import { toTextNodeElement } from "./RectifyCoreService";
+import {
+  isRectifyIgnorable,
+  isValidRectifyElement,
+  toFragmentElement,
+  toTextNodeElement,
+} from "./RectifyCoreService";
 
 const withNormalizeChildren = (props: any): Iterable<RectifyElement> => {
   const children = props?.children;
@@ -14,15 +19,27 @@ const withNormalizeChildren = (props: any): Iterable<RectifyElement> => {
       key: null,
       type: null,
       props: children,
+      index: 0,
     };
     return [textElement];
   }
 
   if (isIterable(children)) {
     const out: RectifyElement[] = [];
+    let index = 0;
     for (const child of children) {
       if (isTextNode(child)) {
-        out.push(toTextNodeElement(child));
+        const childElement = toTextNodeElement(child);
+        childElement.index = index++;
+        out.push(childElement);
+      } else if (isValidRectifyElement(child)) {
+        const childElement = child;
+        childElement.index = index++;
+        out.push(childElement);
+      } else if (isRectifyIgnorable(child)) {
+        const childElement = toFragmentElement(child);
+        childElement.index = index++;
+        out.push(childElement);
       } else {
         out.push(child as RectifyElement);
       }

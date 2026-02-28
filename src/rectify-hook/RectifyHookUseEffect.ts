@@ -6,6 +6,7 @@ import {
 } from "./RectifyHookRenderingFiber";
 import { EffectHook, HookType } from "./RectifyHookTypes";
 import { isFunction } from "@rectify/shared/utilities";
+import { walkFiberTree } from "@rectify/rectify-reconciler/RectifyFiberReconcilerService";
 
 function areHookInputsEqual(
   nextDeps: any[] | undefined,
@@ -57,27 +58,23 @@ function useEffect(create: () => (() => void) | void, deps?: any[]) {
 }
 
 const flushPassiveEffects = (fiber: RectifyFiber) => {
-  if (fiber.effects) {
-    for (const effect of fiber.effects) {
-      // cleanup first
-      if (effect.cleanup) {
-        effect.cleanup();
+  walkFiberTree(fiber, (f) => {
+    if (f.effects) {
+      for (const effect of f.effects) {
+        // cleanup first
+        if (effect.cleanup) {
+          effect.cleanup();
+        }
+
+        const cleanup = effect.create();
+        if (isFunction(cleanup)) {
+          effect.cleanup = cleanup;
+        }
       }
 
-      const cleanup = effect.create();
-      if (isFunction(cleanup)) {
-        effect.cleanup = cleanup;
-      }
+      f.effects = [];
     }
-
-    fiber.effects = [];
-  }
-
-  let child = fiber.child;
-  while (child) {
-    flushPassiveEffects(child);
-    child = child.sibling;
-  }
+  });
 };
 
 export { useEffect, flushPassiveEffects };

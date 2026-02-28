@@ -1,6 +1,7 @@
 import { RECTIFY_ELEMENT_TYPE } from "./RectifyElementConstants";
 import { RectifyElement, RectifyElementType, RectifyKey } from "./RectifyTypes";
 import { withNormalizeProps } from "./RectifyInternalHOC";
+import { extractKeyFromProps } from "./RectifyCoreService";
 
 /**
  * Create element function to create a Rectify element
@@ -14,11 +15,12 @@ export const createElement = (
   key: RectifyKey = null,
 ): RectifyElement => {
   // Determine the element key
-  const elementKey = key ? key : ((props as any)?.key ?? null);
+  const elementKey = extractKeyFromProps(props, key);
 
   return {
     __type__: RECTIFY_ELEMENT_TYPE,
     key: elementKey,
+    index: 0,
     type,
     props: withNormalizeProps(props),
   };

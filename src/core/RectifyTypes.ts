@@ -7,7 +7,8 @@ export type RectifyElementType = string | RectifyFunctionComponent | null;
 /**
  * A function component in Rectify, which takes props and returns a RectifyNode
  */
-export type RectifyFunctionComponent<P = any> = (props: P) => RectifyNode;
+export type RectifyFunctionComponent<P = any> = ((props: P) => RectifyNode) &
+  RectifyFunctionComponentConfigs<P>;
 
 /**
  * The core structure representing a Rectify element
@@ -33,6 +34,11 @@ export type RectifyElement = {
    * The properties/attributes/text of the element
    */
   props: unknown;
+
+  /**
+   * The index of the element in its parent's children array, used for reconciliation
+   */
+  index: number;
 };
 
 /**
@@ -43,9 +49,7 @@ export type RectifyNode =
   | RectifyText
   | RectifyElement
   | Iterable<RectifyNode>
-  | boolean
-  | null
-  | undefined;
+  | RectifyIgnorable;
 
 /**
  * The type representing a key for Rectify elements,
@@ -56,3 +60,20 @@ export type RectifyKey = string | number | null | undefined;
  * The type representing text nodes in Rectify,
  */
 export type RectifyText = string | number;
+
+/**
+ * The type of empty
+ */
+export type RectifyIgnorable = null | undefined | boolean | void;
+
+/**
+ * The type representing the props of a Rectify element,
+ */
+export type RectifyFunctionComponentConfigs<P = any> = {
+  defaultProps?: Partial<P>;
+};
+
+/**
+ * The type representing a React function component, which is a function that takes props and returns a RectifyNode
+ */
+export type FC<P> = RectifyFunctionComponent<P>;

@@ -2,21 +2,24 @@ import { RectifyFiberFlags } from "./RectifyFiberFlags";
 import { RectifyFiber } from "./RectifyFiberTypes";
 
 const addFlagToFiber = (fiber: RectifyFiber, flag: RectifyFiberFlags): void => {
+  if (hasFlagOnFiber(fiber, flag)) return;
   fiber.flags |= flag;
 };
 
 const removeFlagFromFiber = (
-  fiber: RectifyFiber,
+  fiber: RectifyFiber | null,
   flag: RectifyFiberFlags,
 ): void => {
-  fiber.flags &= ~flag;
+  if (!hasFlagOnFiber(fiber, flag)) return;
+  fiber!.flags &= ~flag;
 };
 
-const hasFLagOnFiber = (
-  fiber: RectifyFiber,
+const hasFlagOnFiber = (
+  fiber: RectifyFiber | null,
   flag: RectifyFiberFlags,
 ): boolean => {
+  if (!fiber) return false;
   return (fiber.flags & flag) !== 0;
 };
 
-export { addFlagToFiber, removeFlagFromFiber, hasFLagOnFiber };
+export { addFlagToFiber, removeFlagFromFiber, hasFlagOnFiber };
